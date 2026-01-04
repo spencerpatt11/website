@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cashout Chat</title>
+  <style>
+    body { font-family: Arial; }
+    #chat { width: 400px; height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; }
+    #msg { width: 300px; }
+  </style>
+</head>
+<body>
+
+<h1>Cashout Support</h1>
+
+<div id="chat"></div>
+
+<br>
+<input id="msg" placeholder="Type your message...">
+<button onclick="sendMessage()">Send</button>
+
+<br><br>
+<button onclick="window.location.href='/hub'">Back to Hub</button>
+
+<script>
+async function loadChat() {
+  const res = await fetch("/messages");
+  const messages = await res.json();
+
+  const chat = document.getElementById("chat");
+  chat.innerHTML = "";
+
+  messages.forEach(m => {
+    const div = document.createElement("div");
+    div.textContent = m.user + ": " + m.text;
+    chat.appendChild(div);
+  });
+
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function sendMessage() {
+  const text = document.getElementById("msg").value;
+  if (!text.trim()) return;
+
+  await fetch("/send-message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+
+  document.getElementById("msg").value = "";
+  loadChat();
+}
+
+setInterval(loadChat, 1000);
+loadChat();
+</script>
+
+</body>
+</html>

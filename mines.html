@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mines</title>
+  <style>
+    body { font-family: Arial; }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      gap: 5px;
+      margin-top: 20px;
+    }
+    .tile {
+      width: 60px;
+      height: 60px;
+      background: #333;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      font-size: 20px;
+      border-radius: 5px;
+    }
+    .revealed { background: #4caf50; }
+    .mine { background: red; }
+  </style>
+</head>
+<body>
+
+<h1>Mines</h1>
+
+<p id="balance">Loading balance...</p>
+
+<label>Bet Amount:</label>
+<input type="number" id="bet" value="10" min="1"><br><br>
+
+<label>Mines:</label>
+<select id="mineCount">
+  <option value="1">1 Mine</option>
+  <option value="3">3 Mines</option>
+  <option value="5">5 Mines</option>
+  <option value="10">10 Mines</option>
+</select>
+
+<br><br>
+<button id="startBtn">Start Game</button>
+
+<div id="board"></div>
+
+<h2 id="multiplier">Multiplier: 1.00x</h2>
+
+<button id="cashoutBtn" style="display:none;">Cashout</button>
+<br><br>
+
+<button onclick="window.location.href='/hub'">Back to Hub</button>
+
+<script>
+let mines = [];
+let revealed = 0;
+let multiplier = 1;
+let gameActive = false;
+let betAmount = 0;
+
+async function loadBalance() {
+  const res = await fetch("/balance");
+  const json = await res.json();
+  document.getElementById("balance").innerText = "Balance: $" + json.balance;
+}
+loadBalance();
+
+function generateBoard(mineCount) {
+  console.log("Generating board with", mineCount, "mines");
+
+  mines = [];
+  revealed = 0;
+  multiplier = 1;
+  gameActive = true;
+
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+
+  while (mines.length < mineCount) {
+    let pos = Math.floor(Math.random() * 25);
+    if (!mines.includes(pos)) mines.push(pos);
+  }
+
+  console.log("Mine positions:", mines);
+
+  for (let i = 0; i < 25; i++) {
+    const tile = document.createElement("div");
+    tile.classList.add("tile");
+    tile.dataset.index = i;
+    tile.onclick = () => revealTile(tile);
+    board.appendChild(tile);
+  }
+
+  document.getElementById("cashoutBtn").style.display = "none";
+  updateMultiplier();
+}
+
+function updateMultiplier() {
+  multiplier = 1 + revealed * 0.35;
+  document.getElementById("multiplier").innerText =
+    "Multiplier: " + multiplier.toFixed(2) + "x";
+}
+
+async function revealTile(tile) {
+  if (!gameActive) return;
+
+  const index = parseInt(tile.dataset.index, 10);
+
+  if (mines.includes(index)) {
+    tile.classList.add("mine");
+    tile.textContent = "💣";
+    gameActive = false;
+    alert("You hit a mine! You lost your bet.");
+    return;
+  }
+
+  tile.classList.add("revealed");
+  tile.textContent = "✔";
+  tile.onclick = null;
+
+  revealed++;
+  updateMultiplier();
+
+  document.getElementById("cashoutBtn").style.display = "block";
+}
+
+document.getElementById("startBtn").onclick = async () => {
+  betAmount = Number(document.getElementById("bet").value);
+  const mineCount = Number(document.getElementById("mineCount").value);
+
+  console.log("Starting game with bet:", betAmount, "mines:", mineCount);
+
+  if (!betAmount || betAmount <= 0) {
+    alert("Enter a valid bet amount.");
+    return;
+  }
+
+  const balanceRes = await fetch("/balance");
+  const balanceJson = await balanceRes.json();
+
+  console.log("Current balance:", balanceJson.balance);
+
+  if (betAmount > balanceJson.balance) {
+    alert("Not enough balance.");
+    return;
+  }
+
+  const deductRes = await fetch("/deduct", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount: betAmount })
+  });
+
+  const deductJson = await deductRes.json();
+  console.log("Deduct response:", deductJson);
+
+  if (!deductJson.success) {
+    alert("Failed to deduct bet: " + (deductJson.error || "Unknown error"));
+    return;
+  }
+
+  await loadBalance();
+  generateBoard(mineCount);
+};
+
+
+document.getElementById("cashoutBtn").onclick = async () => {
+  if (!gameActive) return;
+
+  const winnings = betAmount * multiplier;
+
+  const confirmCashout = confirm(
+    "Cashout $" + winnings.toFixed(2) + "?"
+  );
+
+  if (!confirmCashout) return;
+
+  gameActive = false;
+
+  const addRes = await fetch("/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount: winnings })
+  });
+
+  const addJson = await addRes.json();
+
+  if (!addJson.success) {
+    alert("Failed to add winnings.");
+    return;
+  }
+
+  alert("You cashed out $" + winnings.toFixed(2));
+  loadBalance();
+};
+</script>
+
+</body>
+</html>

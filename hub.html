@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hub</title>
+</head>
+<body>
+
+<h1>Welcome to the Hub</h1>
+
+<p id="balance">Loading balance...</p>
+
+<button onclick="window.location.href='/mines'">Play Mines</button>
+<br><br>
+
+
+<button onclick="window.location.href='/cashout-page'">Request Cashout</button><a href="/logout">Logout</a>
+
+<script>
+async function loadBalance() {
+  const res = await fetch("/balance");
+  const json = await res.json();
+  document.getElementById("balance").innerText = "Balance: $" + json.balance;
+}
+loadBalance();
+</script>
+
+</body>
+</html>

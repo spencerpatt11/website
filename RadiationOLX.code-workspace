@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../RadiationOLX"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "Website"
+	}
+}
